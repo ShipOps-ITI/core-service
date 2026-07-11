@@ -12,191 +12,104 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─────────────────────────────────────────
+
+//
 // ENUMS
-// ─────────────────────────────────────────
-enum Status {
-  LOADING
-  SAILING
-  WAITING
-  DELAYED
-  ARRIVED
-  COMPLETED
+//
+
+enum ShipState {
+  ACTIVE
+  MAINTENANCE
+  DOCKED
+  AT_SEA
 }
 
-enum Document_Status {
-  Uploaded
-  Pending
-  Approved
-  Rejected
-}
-
-// ─────────────────────────────────────────
+//
 // COMPANY
-// ─────────────────────────────────────────
-model Company {
-  id            String @id @default(uuid())
-  name          String
-  country       String
-  contact_email String
+//
 
-  ships   Ship[]
-  cargo   Cargo[]  @relation("CargoOwner")
-  voyages Voyage[] @relation("ShippingCompany")
+model Company {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique
+  country       String
+  contactEmail  String
+  phone         String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fleets        Fleet[]
+  ships         Ship[]
 
   @@map("companies")
 }
 
-// ─────────────────────────────────────────
-// SHIP
-// ─────────────────────────────────────────
-model Ship {
-  id                 String   @id @default(uuid())
-  name               String
-  imo_number         String?  @unique
-  flag               String
-  capacity_tonnage   Float
-  ship_type          String?
-  availability_state String
-  current_latitude   Float?
-  current_longitude  Float?
-  length_meters      Float?
-  width_meters       Float?
-  company_id         String
-  fleet_id           String?
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-
-  company Company  @relation(fields: [company_id], references: [id])
-  fleet   Fleet?   @relation(fields: [fleet_id], references: [id])
-  voyages Voyage[]
-
-  @@map("ships")
-}
-
-// ─────────────────────────────────────────
+//
 // FLEET
-// ─────────────────────────────────────────
-model Fleet {
-  id                 String   @id @default(uuid())
-  name               String
-  description        String?
-  managed_by_user_id String // UUID — references User in auth-service, no local FK
-  created_by_user_id String // UUID — references User in auth-service, no local FK
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+//
 
-  ships Ship[]
+model Fleet {
+  id              String   @id @default(uuid()) @db.Uuid
+
+  companyId       String   @db.Uuid
+
+  name            String
+  description     String?
+
+  // References Auth Service only (UUIDs)
+  managedByUserId String   @db.Uuid
+  createdByUserId String   @db.Uuid
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company          Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ships            Ship[]
+
+  @@unique([companyId, name])
+
+  @@index([companyId])
 
   @@map("fleets")
 }
 
-// ─────────────────────────────────────────
-// PORT
-// ─────────────────────────────────────────
-model Port {
-  id        String @id @default(uuid())
-  name      String
-  country   String
-  latitude  Float?
-  longitude Float?
+//
+// SHIP
+//
 
-  origin_voyages      Voyage[] @relation("OriginPort")
-  destination_voyages Voyage[] @relation("DestinationPort")
+model Ship {
+  id                  String      @id @default(uuid()) @db.Uuid
 
-  @@map("ports")
-}
+  companyId           String      @db.Uuid
+  fleetId             String?     @db.Uuid
 
-// ─────────────────────────────────────────
-// VOYAGE
-// ─────────────────────────────────────────
-model Voyage {
-  id                  String    @id @default(uuid())
-  ship_id             String
-  shipping_company_id String
-  origin_port_id      String
-  destination_port_id String
-  current_status      Status
-  departure_time      DateTime
-  estimated_arrival   DateTime?
-  actual_arrival      DateTime?
+  name                String
 
-  ship             Ship    @relation(fields: [ship_id], references: [id])
-  shipping_company Company @relation("ShippingCompany", fields: [shipping_company_id], references: [id])
-  origin_port      Port    @relation("OriginPort", fields: [origin_port_id], references: [id])
-  destination_port Port    @relation("DestinationPort", fields: [destination_port_id], references: [id])
+  imoNumber           String?     @unique
 
-  cargo          Cargo[]
-  status_history Voyage_Status_History[]
-  canal_transit  Suez_Canal_Transit?
+  flag                String
 
-  @@map("voyages")
-}
+  capacityTonnage     Float
 
-model Voyage_Status_History {
-  id         String   @id @default(uuid())
-  voyage_id  String
-  status     Status
-  changed_at DateTime @default(now())
-  changed_by String // UUID — references User in auth-service, no local FK
+  shipType            String?
 
-  voyage Voyage @relation(fields: [voyage_id], references: [id])
+  availabilityState   ShipState   @default(ACTIVE)
 
-  @@map("voyage_status_history")
-}
+  currentLatitude     Float?
+  currentLongitude    Float?
 
-// ─────────────────────────────────────────
-// SUEZ CANAL
-// ─────────────────────────────────────────
-model Suez_Canal_Transit {
-  id         String    @id @default(uuid())
-  voyage_id  String    @unique
-  entry_time DateTime?
-  exit_time  DateTime?
-  status     String
+  lengthMeters        Float?
+  widthMeters         Float?
 
-  voyage Voyage @relation(fields: [voyage_id], references: [id])
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
-  @@map("suez_canal_transits")
-}
+  company             Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fleet               Fleet?      @relation(fields: [fleetId], references: [id], onDelete: SetNull)
 
-// ─────────────────────────────────────────
-// SHIPMENT MODULE
-// ─────────────────────────────────────────
-model Cargo {
-  id               String  @id @default(uuid())
-  voyage_id        String
-  cargo_owner      String
-  name             String
-  description      String?
-  weight           Float
-  quantity         Int
-  cargo_type       String?
-  container_number String?
-  status           String
+  @@index([companyId])
+  @@index([fleetId])
+  @@index([availabilityState])
 
-  voyage Voyage  @relation(fields: [voyage_id], references: [id])
-  owner  Company @relation("CargoOwner", fields: [cargo_owner], references: [id])
-
-  documents Cargo_Document[]
-
-  @@map("cargo")
-}
-
-// ─────────────────────────────────────────
-// DOCUMENTS MODULE
-// ─────────────────────────────────────────
-model Cargo_Document {
-  id            String          @id @default(uuid())
-  cargo_id      String
-  uploaded_by   String // UUID — references User in auth-service, no local FK
-  document_type String
-  file_url      String
-  file_name     String
-  status        Document_Status
-  uploaded_at   DateTime        @default(now())
-
-  cargo Cargo @relation(fields: [cargo_id], references: [id])
-
-  @@map("cargo_documents")
+  @@map("ships")
 }

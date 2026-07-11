@@ -7,11 +7,7 @@ It manages the shipping domain, including:
 - Companies
 - Fleets
 - Ships
-- Ports
-- Voyages
-- Cargo
-- Documents
-- Dashboard APIs
+
 
 This service is part of the ShipOps microservices architecture.
 
@@ -26,7 +22,7 @@ This service is part of the ShipOps microservices architecture.
 - Docker
 - Zod
 - JWT
-- Swagger (Coming Soon)
+- Swagger 
 
 ---
 
@@ -104,30 +100,7 @@ The API will be available at:
 http://localhost:5000
 ```
 
----
 
-## Documentation
 
-Detailed documentation is available in the **docs** folder.
 
-- [Setup Guide](docs/setup.md)
-- Database Guide *(Coming Soon)*
-- API Documentation *(Coming Soon)*
-- Architecture *(Coming Soon)*
-
----
-
-## Development Status
-
-- Project Setup
-- Express Server
-- Docker
-- PostgreSQL
-- Prisma
-- Initial Migration
-- Company Module
-- Fleet Module
-- Ship Module
-- Voyage Module
-- Cargo Module
 
