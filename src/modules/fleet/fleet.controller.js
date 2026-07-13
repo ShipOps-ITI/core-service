@@ -1,14 +1,17 @@
 const fleetService = require("./fleet.service");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/fleets
 exports.getAllFleets = async (req, res) => {
   try {
-    const fleets = await fleetService.getAllFleets();
+    const { page, limit, skip } = getPagination(req.query);
+    const { fleets, total } = await fleetService.getAllFleets({ skip, limit });
 
     return res.status(200).json({
       success: true,
       message: "Fleets retrieved successfully",
       data: fleets,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);

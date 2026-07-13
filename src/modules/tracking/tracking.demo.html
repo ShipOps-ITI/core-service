@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShipOps Live Tracking Demo</title>
+    <style>
+      :root { color: #eaf5ff; background: #071d2d; font-family: Inter, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(100% - 32px, 1100px); margin: 0 auto; padding: 32px 0; }
+      header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 24px; }
+      h1 { margin: 0 0 6px; font-size: 2rem; }
+      p { margin: 0; color: #a8c1d4; }
+      .connection { color: #90f1c1; font-weight: 700; font-size: .9rem; }
+      .layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+      .map { position: relative; min-height: 580px; overflow: hidden; border: 1px solid #28516c; border-radius: 16px; background: linear-gradient(135deg, #0f4c6e, #082c48); }
+      .map::before { content: ""; position: absolute; inset: 0; opacity: .28; background-image: linear-gradient(#7eb6d520 1px, transparent 1px), linear-gradient(90deg, #7eb6d520 1px, transparent 1px); background-size: 50px 50px; }
+      .map-label { position: absolute; z-index: 1; color: #a8c1d4; font-size: .8rem; }
+      .map-label.red-sea { top: 18%; left: 14%; }.map-label.arabian { bottom: 18%; left: 53%; }.map-label.gulf { top: 25%; right: 12%; }
+      .marker { position: absolute; z-index: 2; transform: translate(-50%, -50%); transition: left .9s linear, top .9s linear; color: #fff; text-align: center; }
+      .ship-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #1679a7; box-shadow: 0 0 0 6px #6bd8ff30; }
+      .marker-name { margin-top: 6px; padding: 3px 6px; border-radius: 4px; background: #061722b8; font-size: .72rem; white-space: nowrap; }
+      .panel { border: 1px solid #28516c; border-radius: 16px; background: #0a263a; padding: 18px; }
+      .panel h2 { margin: 0 0 14px; font-size: 1.05rem; }
+      .ship-card { border-top: 1px solid #28516c; padding: 14px 0; }.ship-card:first-of-type { border-top: 0; padding-top: 0; }
+      .ship-card h3 { margin: 0 0 7px; font-size: .95rem; }.ship-card p { font-size: .85rem; line-height: 1.5; }
+      .updated { color: #90f1c1; font-size: .78rem; margin-top: 7px !important; }
+      footer { margin-top: 18px; font-size: .82rem; color: #7ea6be; }
+      @media (max-width: 760px) { header, .layout { display: block; }.connection { margin-top: 12px; }.panel { margin-top: 20px; }.map { min-height: 450px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><h1>Live Fleet Tracking</h1><p>Standalone simulation using streamed vessel positions.</p></div>
+        <div class="connection" id="connection">● Connecting...</div>
+      </header>
+      <section class="layout">
+        <div class="map" id="map">
+          <span class="map-label red-sea">RED SEA</span><span class="map-label arabian">ARABIAN SEA</span><span class="map-label gulf">ARABIAN GULF</span>
+        </div>
+        <aside class="panel"><h2>Active vessels</h2><div id="ship-list"></div></aside>
+      </section>
+      <footer>Demo only: positions are simulated in memory and are not stored in your database.</footer>
+    </main>
+    <script>
+      const shipNames = { "demo-red-sea": "MV Red Sea Explorer", "demo-gulf": "MV Gulf Star", "demo-arabian": "MV Arabian Pearl" };
+      const locations = new Map();
+      const map = document.getElementById("map");
+      const list = document.getElementById("ship-list");
+      const connection = document.getElementById("connection");
+
+      function mapPosition(location) {
+        return { left: Math.max(5, Math.min(95, ((location.longitude - 35) / 25) * 100)), top: Math.max(5, Math.min(95, 100 - ((location.latitude - 15) / 15) * 100)) };
+      }
+
+      function render() {
+        map.querySelectorAll(".marker").forEach((marker) => marker.remove());
+        list.innerHTML = "";
+        locations.forEach((location) => {
+          const position = mapPosition(location);
+          const marker = document.createElement("div");
+          marker.className = "marker"; marker.style.left = position.left + "%"; marker.style.top = position.top + "%";
+          marker.innerHTML = `<div class="ship-icon" style="transform: rotate(${location.heading || 0}deg)">▲</div><div class="marker-name">${shipNames[location.shipId]}</div>`;
+          map.appendChild(marker);
+          const card = document.createElement("article"); card.className = "ship-card";
+          card.innerHTML = `<h3>${shipNames[location.shipId]}</h3><p>${location.latitude.toFixed(4)}°, ${location.longitude.toFixed(4)}°<br>Speed: ${location.speed || 0} kn · Heading: ${location.heading || 0}°</p><p class="updated">Live update received</p>`;
+          list.appendChild(card);
+        });
+      }
+
+      fetch("/api/locations").then((response) => response.json()).then((payload) => { payload.data.forEach((location) => locations.set(location.shipId, location)); render(); });
+      const events = new EventSource("/events");
+      events.onopen = () => { connection.textContent = "● Live connection"; };
+      events.onerror = () => { connection.textContent = "● Reconnecting..."; };
+      events.onmessage = (event) => { const location = JSON.parse(event.data); locations.set(location.shipId, location); render(); };
+    </script>
+  </body>
+</html>
