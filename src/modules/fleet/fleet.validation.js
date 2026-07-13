@@ -1,7 +1,7 @@
 const { z } = require("zod");
 
 const createFleetSchema = z.object({
-    companyId: z.string().uuid(),
+    companyId: z.number().int().positive(),
 
     name: z
         .string()
@@ -13,9 +13,9 @@ const createFleetSchema = z.object({
         .string()
         .optional(),
 
-    managedByUserId: z.string(),
+    managedByUserId: z.number().int().positive(),
 
-    createdByUserId: z.string()
+    createdByUserId: z.number().int().positive()
 });
 
 const updateFleetSchema = z.object({
@@ -23,7 +23,8 @@ const updateFleetSchema = z.object({
 
     description: z.string().optional(),
 
-    managedByUserId: z.string().uuid().optional()
+    // Keep this consistent with creation. The database still enforces UUID storage.
+    managedByUserId: z.number().int().positive().optional()
 });
 
 module.exports = {

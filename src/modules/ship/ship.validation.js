@@ -3,10 +3,11 @@ const { z } = require("zod");
 const shipState = z.enum(["ACTIVE", "MAINTENANCE", "DOCKED", "AT_SEA"]);
 
 const createShipSchema = z.object({
-  companyId: z.string().uuid(),
-  fleetId: z.string().uuid().nullable().optional(),
+  companyId: z.number().int().positive(),
+  fleetId: z.number().int().positive().nullable().optional(),
   name: z.string().min(2),
   imoNumber: z.string().nullable().optional(),
+  mmsiNumber: z.string().nullable().optional(),
   flag: z.string(),
   capacityTonnage: z.number(),
   shipType: z.string().nullable().optional(),
@@ -18,10 +19,11 @@ const createShipSchema = z.object({
 });
 
 const updateShipSchema = z.object({
-  companyId: z.string().uuid().optional(),
-  fleetId: z.string().uuid().nullable().optional(),
+  companyId: z.number().int().positive().optional(),
+  fleetId: z.number().int().positive().nullable().optional(),
   name: z.string().min(2).optional(),
   imoNumber: z.string().nullable().optional(),
+  mmsiNumber: z.string().nullable().optional(),
   flag: z.string().optional(),
   capacityTonnage: z.number().optional(),
   shipType: z.string().nullable().optional(),

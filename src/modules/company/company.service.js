@@ -1,19 +1,34 @@
 const prisma = require("../../database/prisma");
 
 // Get all companies
-exports.getAllCompanies = async () => {
-  return await prisma.company.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+exports.getAllCompanies = async ({ skip, limit }) => {
+  const [companies, total] = await prisma.$transaction([
+    prisma.company.findMany({
+      skip,
+      take: limit,
+      include: {
+        _count: {
+          select: {
+            fleets: true,
+            ships: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.company.count(),
+  ]);
+
+  return { companies, total };
 };
 
 // Get company by ID
 exports.getCompanyById = async (id) => {
   return await prisma.company.findUnique({
     where: {
-      id,
+      id: Number(id),
     },
   });
 };
@@ -34,7 +49,7 @@ exports.createCompany = async (data) => {
 exports.updateCompany = async (id, data) => {
   return await prisma.company.update({
     where: {
-      id,
+      id: Number(id),
     },
     data: {
       name: data.name,
@@ -49,7 +64,7 @@ exports.updateCompany = async (id, data) => {
 exports.deleteCompany = async (id) => {
   return await prisma.company.delete({
     where: {
-      id,
+      id: Number(id),
     },
   });
 };

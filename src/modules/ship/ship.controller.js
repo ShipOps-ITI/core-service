@@ -1,14 +1,17 @@
 const shipService = require("./ship.service");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/ships
 exports.getAllShips = async (req, res) => {
   try {
-    const ships = await shipService.getAllShips();
+    const { page, limit, skip } = getPagination(req.query);
+    const { ships, total } = await shipService.getAllShips({ skip, limit });
 
     return res.status(200).json({
       success: true,
       message: "Ships retrieved successfully",
       data: ships,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);
