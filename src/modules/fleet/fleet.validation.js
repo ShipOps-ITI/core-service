@@ -21,10 +21,7 @@ const createFleetSchema = z.object({
 const updateFleetSchema = z.object({
     name: z.string().trim().min(2).max(100).optional(),
 
-    description: z.string().optional(),
-
-    // Keep this consistent with creation. The database still enforces UUID storage.
-    managedByUserId: z.number().int().positive().optional()
+    description: z.string().optional()
 });
 
 module.exports = {

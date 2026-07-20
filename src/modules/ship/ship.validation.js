@@ -1,13 +1,14 @@
 const { z } = require("zod");
 
 const shipState = z.enum(["ACTIVE", "MAINTENANCE", "DOCKED", "AT_SEA"]);
+const mmsiNumber = z.string().regex(/^\d{9}$/, "MMSI number must contain exactly 9 digits.").nullable().optional();
 
 const createShipSchema = z.object({
   companyId: z.number().int().positive(),
   fleetId: z.number().int().positive().nullable().optional(),
   name: z.string().min(2),
   imoNumber: z.string().nullable().optional(),
-  mmsiNumber: z.string().nullable().optional(),
+  mmsiNumber,
   flag: z.string(),
   capacityTonnage: z.number(),
   shipType: z.string().nullable().optional(),
@@ -23,7 +24,7 @@ const updateShipSchema = z.object({
   fleetId: z.number().int().positive().nullable().optional(),
   name: z.string().min(2).optional(),
   imoNumber: z.string().nullable().optional(),
-  mmsiNumber: z.string().nullable().optional(),
+  mmsiNumber,
   flag: z.string().optional(),
   capacityTonnage: z.number().optional(),
   shipType: z.string().nullable().optional(),

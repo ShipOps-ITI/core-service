@@ -53,7 +53,7 @@ model Fleet {
   name            String
   description     String?
 
-  // References Auth Service only (UUIDs)
+  // References Auth Service users (integer IDs)
   managedByUserId Int
   createdByUserId Int
 

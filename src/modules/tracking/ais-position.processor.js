@@ -4,10 +4,14 @@
 
 const prisma = require("../../database/prisma");
 
-const processAisPosition = async ({ mmsi, latitude, longitude }) => {
+const processAisPosition = async ({ mmsi, latitude, longitude, reportedAt }) => {
   const mmsiNumber = String(mmsi || "");
   const parsedLatitude = Number(latitude);
   const parsedLongitude = Number(longitude);
+  const reportedAtDate = reportedAt ? new Date(reportedAt) : null;
+  const lastAisUpdateAt = reportedAtDate && !Number.isNaN(reportedAtDate.getTime())
+    ? reportedAtDate
+    : new Date();
 
   if (!mmsiNumber || !Number.isFinite(parsedLatitude) || !Number.isFinite(parsedLongitude)) {
     return { matched: false, reason: "Invalid AIS position" };
@@ -27,7 +31,7 @@ const processAisPosition = async ({ mmsi, latitude, longitude }) => {
     data: {
       currentLatitude: parsedLatitude,
       currentLongitude: parsedLongitude,
-      lastAisUpdateAt: new Date(),
+      lastAisUpdateAt,
     },
     select: {
       id: true,
