@@ -26,7 +26,7 @@ enum ShipState {
 //
 
 model Company {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            Int      @id @default(autoincrement())
   name          String   @unique
   country       String
   contactEmail  String
@@ -46,16 +46,16 @@ model Company {
 //
 
 model Fleet {
-  id              String   @id @default(uuid()) @db.Uuid
+  id              Int      @id @default(autoincrement())
 
-  companyId       String   @db.Uuid
+  companyId       Int
 
   name            String
   description     String?
 
-  // References Auth Service only (UUIDs)
-  managedByUserId String   @db.Uuid
-  createdByUserId String   @db.Uuid
+  // References Auth Service users (integer IDs)
+  managedByUserId Int
+  createdByUserId Int
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -75,14 +75,15 @@ model Fleet {
 //
 
 model Ship {
-  id                  String      @id @default(uuid()) @db.Uuid
+  id                  Int         @id @default(autoincrement())
 
-  companyId           String      @db.Uuid
-  fleetId             String?     @db.Uuid
+  companyId           Int
+  fleetId             Int?
 
   name                String
 
   imoNumber           String?     @unique
+  mmsiNumber          String?     @unique
 
   flag                String
 
@@ -94,6 +95,7 @@ model Ship {
 
   currentLatitude     Float?
   currentLongitude    Float?
+  lastAisUpdateAt     DateTime?
 
   lengthMeters        Float?
   widthMeters         Float?

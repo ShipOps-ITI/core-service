@@ -1,7 +1,7 @@
 const { z } = require("zod");
 
 const createFleetSchema = z.object({
-    companyId: z.string().uuid(),
+    companyId: z.number().int().positive(),
 
     name: z
         .string()
@@ -13,17 +13,15 @@ const createFleetSchema = z.object({
         .string()
         .optional(),
 
-    managedByUserId: z.string(),
+    managedByUserId: z.number().int().positive(),
 
-    createdByUserId: z.string()
+    createdByUserId: z.number().int().positive()
 });
 
 const updateFleetSchema = z.object({
     name: z.string().trim().min(2).max(100).optional(),
 
-    description: z.string().optional(),
-
-    managedByUserId: z.string().uuid().optional()
+    description: z.string().optional()
 });
 
 module.exports = {

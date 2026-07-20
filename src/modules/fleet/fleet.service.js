@@ -18,7 +18,7 @@ exports.getAllFleets = async () => {
 
 exports.getFleetById = async (id) => {
     return prisma.fleet.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
             company: {
                 select: {
@@ -45,21 +45,21 @@ exports.createFleet = async (data) => {
 
 exports.updateFleet = async (id, data) => {
     return prisma.fleet.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
     });
 };
 
 exports.deleteFleet = async (id) => {
     return prisma.fleet.delete({
-        where: { id },
+        where: { id: Number(id) },
     });
 };
 
 exports.getFleetsByCompany = async (companyId) => {
     return prisma.fleet.findMany({
         where: {
-            companyId,
+            companyId: Number(companyId),
         },
         include: {
             company: {

@@ -1,5 +1,18 @@
 const { z } = require("zod");
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[\d\s().-]{7,25}$/, "Invalid phone number.")
+  .refine(
+    (phone) => {
+      const digits = phone.replace(/\D/g, "").length;
+      return digits >= 7 && digits <= 15;
+    },
+    "Phone number must contain between 7 and 15 digits."
+  )
+  .optional();
+
 // Create Company Validation
 const createCompanySchema = z.object({
   name: z
@@ -18,10 +31,7 @@ const createCompanySchema = z.object({
     .trim()
     .email("Invalid email address."),
 
-  phone: z
-    .string()
-    .trim()
-    .optional()
+  phone: phoneSchema,
 });
 
 // Update Company Validation
@@ -36,18 +46,16 @@ const updateCompanySchema = z.object({
   country: z
     .string()
     .trim()
+    .min(2, "Country is required.")
     .optional(),
 
   contactEmail: z
     .string()
     .trim()
-    .email()
+    .email("Invalid email address.")
     .optional(),
 
-  phone: z
-    .string()
-    .trim()
-    .optional()
+  phone: phoneSchema
 });
 
 module.exports = {

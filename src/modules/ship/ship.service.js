@@ -28,7 +28,7 @@ exports.getAllShips = async () => {
 // Get ship by ID
 exports.getShipById = async (id) => {
   return prisma.ship.findUnique({
-    where: { id },
+    where: { id: Number(id) },
     include: shipInclude,
   });
 };
@@ -36,7 +36,7 @@ exports.getShipById = async (id) => {
 // Get all ships for a company
 exports.getShipsByCompany = async (companyId) => {
   return prisma.ship.findMany({
-    where: { companyId },
+    where: { companyId: Number(companyId) },
     include: shipInclude,
     orderBy: {
       createdAt: "desc",
@@ -47,7 +47,7 @@ exports.getShipsByCompany = async (companyId) => {
 // Get all ships in a fleet
 exports.getShipsByFleet = async (fleetId) => {
   return prisma.ship.findMany({
-    where: { fleetId },
+    where: { fleetId: Number(fleetId) },
     include: shipInclude,
     orderBy: {
       createdAt: "desc",
@@ -66,7 +66,7 @@ exports.createShip = async (data) => {
 // Update ship
 exports.updateShip = async (id, data) => {
   return prisma.ship.update({
-    where: { id },
+    where: { id: Number(id) },
     data,
     include: shipInclude,
   });
@@ -75,6 +75,6 @@ exports.updateShip = async (id, data) => {
 // Delete ship
 exports.deleteShip = async (id) => {
   return prisma.ship.delete({
-    where: { id },
+    where: { id: Number(id) },
   });
 };

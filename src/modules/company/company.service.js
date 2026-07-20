@@ -13,7 +13,7 @@ exports.getAllCompanies = async () => {
 exports.getCompanyById = async (id) => {
   return await prisma.company.findUnique({
     where: {
-      id,
+      id: Number(id),
     },
   });
 };
@@ -34,7 +34,7 @@ exports.createCompany = async (data) => {
 exports.updateCompany = async (id, data) => {
   return await prisma.company.update({
     where: {
-      id,
+      id: Number(id),
     },
     data: {
       name: data.name,
@@ -49,7 +49,7 @@ exports.updateCompany = async (id, data) => {
 exports.deleteCompany = async (id) => {
   return await prisma.company.delete({
     where: {
-      id,
+      id: Number(id),
     },
   });
 };
