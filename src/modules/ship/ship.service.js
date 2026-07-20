@@ -16,13 +16,20 @@ const shipInclude = {
 };
 
 // Get all ships
-exports.getAllShips = async () => {
-  return prisma.ship.findMany({
-    include: shipInclude,
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+exports.getAllShips = async ({ skip, limit }) => {
+  const [ships, total] = await prisma.$transaction([
+    prisma.ship.findMany({
+      skip,
+      take: limit,
+      include: shipInclude,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.ship.count(),
+  ]);
+
+  return { ships, total };
 };
 
 // Get ship by ID

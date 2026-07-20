@@ -5,16 +5,19 @@
 
 
 const companyService = require("./company.service");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/companies
 exports.getAllCompanies = async (req, res) => {
   try {
-    const companies = await companyService.getAllCompanies();
+    const { page, limit, skip } = getPagination(req.query);
+    const { companies, total } = await companyService.getAllCompanies({ skip, limit });
 
     return res.status(200).json({
       success: true,
       message: "Companies retrieved successfully",
       data: companies,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);
