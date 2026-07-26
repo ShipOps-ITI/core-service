@@ -55,6 +55,13 @@ exports.getShipsByFleet = async (fleetId) => {
   });
 };
 
+exports.getFleetById = async (id) => {
+  return prisma.fleet.findUnique({
+    where: { id: Number(id) },
+    select: { id: true, companyId: true },
+  });
+};
+
 // Create ship
 exports.createShip = async (data) => {
   return prisma.ship.create({

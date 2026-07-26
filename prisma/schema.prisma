@@ -78,7 +78,7 @@ model Ship {
   id                  Int         @id @default(autoincrement())
 
   companyId           Int
-  fleetId             Int?
+  fleetId             Int
 
   name                String
 
@@ -104,11 +104,35 @@ model Ship {
   updatedAt           DateTime    @updatedAt
 
   company             Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  fleet               Fleet?      @relation(fields: [fleetId], references: [id], onDelete: SetNull)
+  fleet               Fleet       @relation(fields: [fleetId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
   @@index([fleetId])
   @@index([availabilityState])
 
   @@map("ships")
+}
+
+//
+// PORT
+//
+
+model Port {
+  id          Int      @id @default(autoincrement())
+  name        String
+  country     String
+  countryCode String?
+  unLocode    String?  @unique
+  latitude    Float
+  longitude   Float
+  source      String   @default("MANUAL")
+  isActive    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name, country])
+  @@index([country])
+  @@index([unLocode])
+  @@map("ports")
 }

@@ -1,7 +1,9 @@
 const { z } = require("zod");
 
 const createFleetSchema = z.object({
-    companyId: z.number().int().positive(),
+    // Required by an Admin; ignored for a Fleet Manager because the company
+    // comes from the authenticated user's token.
+    companyId: z.number().int().positive().optional(),
 
     name: z
         .string()
@@ -9,13 +11,7 @@ const createFleetSchema = z.object({
         .min(2)
         .max(100),
 
-    description: z
-        .string()
-        .optional(),
-
-    managedByUserId: z.number().int().positive(),
-
-    createdByUserId: z.number().int().positive()
+    description: z.string().optional(),
 });
 
 const updateFleetSchema = z.object({

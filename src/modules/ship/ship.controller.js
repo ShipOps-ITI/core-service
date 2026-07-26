@@ -1,9 +1,17 @@
 const shipService = require("./ship.service");
+const {
+  isAdmin,
+  getCompanyId,
+  canAccessCompany,
+  denyCompanyAccess,
+} = require("../../middleware/companyScope");
 
 // GET /api/v1/ships
 exports.getAllShips = async (req, res) => {
   try {
-    const ships = await shipService.getAllShips();
+    const ships = isAdmin(req)
+      ? await shipService.getAllShips()
+      : await shipService.getShipsByCompany(getCompanyId(req));
 
     return res.status(200).json({
       success: true,
@@ -32,6 +40,10 @@ exports.getShipById = async (req, res) => {
       });
     }
 
+    if (!canAccessCompany(req, ship.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Ship retrieved successfully",
@@ -50,7 +62,28 @@ exports.getShipById = async (req, res) => {
 // POST /api/v1/ships
 exports.createShip = async (req, res) => {
   try {
-    const ship = await shipService.createShip(req.body);
+    const companyId = isAdmin(req) ? Number(req.body.companyId) : getCompanyId(req);
+
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a company before creating a ship",
+      });
+    }
+
+    const fleet = await shipService.getFleetById(req.body.fleetId);
+
+    if (!fleet || fleet.companyId !== companyId) {
+      return res.status(400).json({
+        success: false,
+        message: "The selected fleet does not belong to your company",
+      });
+    }
+
+    const ship = await shipService.createShip({
+      ...req.body,
+      companyId,
+    });
 
     return res.status(201).json({
       success: true,
@@ -79,6 +112,23 @@ exports.updateShip = async (req, res) => {
         message: "Ship not found",
       });
     }
+
+    if (!canAccessCompany(req, existingShip.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
+    if (req.body.fleetId) {
+      const fleet = await shipService.getFleetById(req.body.fleetId);
+      if (!fleet || fleet.companyId !== existingShip.companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "The selected fleet does not belong to this ship's company",
+        });
+      }
+    }
+
+    // Company ownership cannot be changed through a ship update.
+    delete req.body.companyId;
 
     const ship = await shipService.updateShip(id, req.body);
 
@@ -110,6 +160,10 @@ exports.deleteShip = async (req, res) => {
       });
     }
 
+    if (!canAccessCompany(req, existingShip.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     await shipService.deleteShip(id);
 
     return res.status(200).json({
@@ -129,6 +183,10 @@ exports.deleteShip = async (req, res) => {
 // GET /api/v1/ships/company/:companyId
 exports.getShipsByCompany = async (req, res) => {
   try {
+    if (!canAccessCompany(req, req.params.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     const ships = await shipService.getShipsByCompany(req.params.companyId);
 
     return res.status(200).json({
@@ -149,6 +207,15 @@ exports.getShipsByCompany = async (req, res) => {
 // GET /api/v1/ships/fleet/:fleetId
 exports.getShipsByFleet = async (req, res) => {
   try {
+    const fleet = await shipService.getFleetById(req.params.fleetId);
+    if (!fleet) {
+      return res.status(404).json({ success: false, message: "Fleet not found" });
+    }
+
+    if (!canAccessCompany(req, fleet.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     const ships = await shipService.getShipsByFleet(req.params.fleetId);
 
     return res.status(200).json({

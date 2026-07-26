@@ -1,9 +1,17 @@
 const fleetService = require("./fleet.service");
+const {
+  isAdmin,
+  getCompanyId,
+  canAccessCompany,
+  denyCompanyAccess,
+} = require("../../middleware/companyScope");
 
 // GET /api/v1/fleets
 exports.getAllFleets = async (req, res) => {
   try {
-    const fleets = await fleetService.getAllFleets();
+    const fleets = isAdmin(req)
+      ? await fleetService.getAllFleets()
+      : await fleetService.getFleetsByCompany(getCompanyId(req));
 
     return res.status(200).json({
       success: true,
@@ -34,6 +42,10 @@ exports.getFleetById = async (req, res) => {
       });
     }
 
+    if (!canAccessCompany(req, fleet.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Fleet retrieved successfully",
@@ -52,7 +64,21 @@ exports.getFleetById = async (req, res) => {
 // POST /api/v1/fleets
 exports.createFleet = async (req, res) => {
   try {
-    const fleet = await fleetService.createFleet(req.body);
+    const companyId = isAdmin(req) ? Number(req.body.companyId) : getCompanyId(req);
+
+    if (!Number.isInteger(companyId) || companyId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a company before creating a fleet",
+      });
+    }
+
+    const fleet = await fleetService.createFleet({
+      ...req.body,
+      companyId,
+      managedByUserId: req.user.userId,
+      createdByUserId: req.user.userId,
+    });
 
     return res.status(201).json({
       success: true,
@@ -81,6 +107,10 @@ exports.updateFleet = async (req, res) => {
         success: false,
         message: "Fleet not found",
       });
+    }
+
+    if (!canAccessCompany(req, existingFleet.companyId)) {
+      return denyCompanyAccess(res);
     }
 
     const updatedFleet = await fleetService.updateFleet(id, req.body);
@@ -114,6 +144,10 @@ exports.deleteFleet = async (req, res) => {
       });
     }
 
+    if (!canAccessCompany(req, existingFleet.companyId)) {
+      return denyCompanyAccess(res);
+    }
+
     await fleetService.deleteFleet(id);
 
     return res.status(200).json({
@@ -134,6 +168,10 @@ exports.deleteFleet = async (req, res) => {
 exports.getFleetsByCompany = async (req, res) => {
   try {
     const { companyId } = req.params;
+
+    if (!canAccessCompany(req, companyId)) {
+      return denyCompanyAccess(res);
+    }
 
     const fleets = await fleetService.getFleetsByCompany(companyId);
 
