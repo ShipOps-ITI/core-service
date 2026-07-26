@@ -17,6 +17,7 @@ exports.getAllShips = async (req, res) => {
       success: true,
       message: "Ships retrieved successfully",
       data: ships,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);

@@ -17,6 +17,7 @@ exports.getAllFleets = async (req, res) => {
       success: true,
       message: "Fleets retrieved successfully",
       data: fleets,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);

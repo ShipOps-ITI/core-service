@@ -1,7 +1,10 @@
 const prisma = require("../../database/prisma");
 
-exports.getAllFleets = async () => {
-    return prisma.fleet.findMany({
+exports.getAllFleets = async ({ skip, limit }) => {
+    const [fleets, total] = await prisma.$transaction([
+      prisma.fleet.findMany({
+        skip,
+        take: limit,
         include: {
             company: {
                 select: {
@@ -9,11 +12,20 @@ exports.getAllFleets = async () => {
                     name: true,
                 },
             },
+            _count: {
+                select: {
+                    ships: true,
+                },
+            },
         },
         orderBy: {
             createdAt: "desc",
         },
-    });
+      }),
+      prisma.fleet.count(),
+    ]);
+
+    return { fleets, total };
 };
 
 exports.getFleetById = async (id) => {

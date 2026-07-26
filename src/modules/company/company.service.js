@@ -1,12 +1,27 @@
 const prisma = require("../../database/prisma");
 
 // Get all companies
-exports.getAllCompanies = async () => {
-  return await prisma.company.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+exports.getAllCompanies = async ({ skip, limit }) => {
+  const [companies, total] = await prisma.$transaction([
+    prisma.company.findMany({
+      skip,
+      take: limit,
+      include: {
+        _count: {
+          select: {
+            fleets: true,
+            ships: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.company.count(),
+  ]);
+
+  return { companies, total };
 };
 
 // Get company by ID

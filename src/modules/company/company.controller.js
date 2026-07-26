@@ -23,6 +23,7 @@ exports.getAllCompanies = async (req, res) => {
       success: true,
       message: "Companies retrieved successfully",
       data: companies,
+      pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
     console.error(error);
