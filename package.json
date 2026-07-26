@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "tracking:ais": "node src/modules/tracking/ais.worker.js",
-    "tracking:vesselapi": "node src/modules/tracking/vesselapi.worker.js"
+    "tracking:vesselapi": "node src/modules/tracking/vesselapi.worker.js",
+    "ports:import-unlocode": "node scripts/import-unlocode-ports.js"
   },
   "keywords": [],
   "author": "",

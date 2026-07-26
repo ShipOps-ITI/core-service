@@ -4,8 +4,10 @@ const shipState = z.enum(["ACTIVE", "MAINTENANCE", "DOCKED", "AT_SEA"]);
 const mmsiNumber = z.string().regex(/^\d{9}$/, "MMSI number must contain exactly 9 digits.").nullable().optional();
 
 const createShipSchema = z.object({
-  companyId: z.number().int().positive(),
-  fleetId: z.number().int().positive().nullable().optional(),
+  // Required by an Admin; ignored for a Fleet Manager because the company
+  // comes from the authenticated user's token.
+  companyId: z.number().int().positive().optional(),
+  fleetId: z.number().int().positive(),
   name: z.string().min(2),
   imoNumber: z.string().nullable().optional(),
   mmsiNumber,
@@ -20,8 +22,7 @@ const createShipSchema = z.object({
 });
 
 const updateShipSchema = z.object({
-  companyId: z.number().int().positive().optional(),
-  fleetId: z.number().int().positive().nullable().optional(),
+  fleetId: z.number().int().positive().optional(),
   name: z.string().min(2).optional(),
   imoNumber: z.string().nullable().optional(),
   mmsiNumber,

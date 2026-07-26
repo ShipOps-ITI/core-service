@@ -5,13 +5,19 @@
 
 
 const companyService = require("./company.service");
-const { getPagination, getPaginationMeta } = require("../../utils/pagination");
+const {
+  isAdmin,
+  getCompanyId,
+  canAccessCompany,
+  denyCompanyAccess,
+} = require("../../middleware/companyScope");
 
 // GET /api/v1/companies
 exports.getAllCompanies = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const { companies, total } = await companyService.getAllCompanies({ skip, limit });
+    const companies = isAdmin(req)
+      ? await companyService.getAllCompanies()
+      : [await companyService.getCompanyById(getCompanyId(req))].filter(Boolean);
 
     return res.status(200).json({
       success: true,
@@ -41,6 +47,10 @@ exports.getCompanyById = async (req, res) => {
         success: false,
         message: "Company not found",
       });
+    }
+
+    if (!canAccessCompany(req, company.id)) {
+      return denyCompanyAccess(res);
     }
 
     return res.status(200).json({
@@ -92,6 +102,10 @@ exports.updateCompany = async (req, res) => {
       });
     }
 
+    if (!canAccessCompany(req, existingCompany.id)) {
+      return denyCompanyAccess(res);
+    }
+
     const updatedCompany = await companyService.updateCompany(id, req.body);
 
     return res.status(200).json({
@@ -121,6 +135,10 @@ exports.deleteCompany = async (req, res) => {
         success: false,
         message: "Company not found",
       });
+    }
+
+    if (!canAccessCompany(req, existingCompany.id)) {
+      return denyCompanyAccess(res);
     }
 
     await companyService.deleteCompany(id);
