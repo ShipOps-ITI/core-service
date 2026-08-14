@@ -5,18 +5,29 @@ const {
   canAccessCompany,
   denyCompanyAccess,
 } = require("../../middleware/companyScope");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/ships
 exports.getAllShips = async (req, res) => {
   try {
-    const ships = isAdmin(req)
-      ? await shipService.getAllShips()
-      : await shipService.getShipsByCompany(getCompanyId(req));
+    const { page, limit, skip } = getPagination(req.query);
+
+    let data;
+    let total = 0;
+
+    if (isAdmin(req)) {
+      const result = await shipService.getAllShips({ skip, limit });
+      data = result.ships;
+      total = result.total;
+    } else {
+      data = await shipService.getShipsByCompany(getCompanyId(req));
+      total = data.length;
+    }
 
     return res.status(200).json({
       success: true,
       message: "Ships retrieved successfully",
-      data: ships,
+      data,
       pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {

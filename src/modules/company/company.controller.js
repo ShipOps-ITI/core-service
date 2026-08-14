@@ -11,18 +11,29 @@ const {
   canAccessCompany,
   denyCompanyAccess,
 } = require("../../middleware/companyScope");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/companies
 exports.getAllCompanies = async (req, res) => {
   try {
-    const companies = isAdmin(req)
-      ? await companyService.getAllCompanies()
-      : [await companyService.getCompanyById(getCompanyId(req))].filter(Boolean);
+    const { page, limit, skip } = getPagination(req.query);
+
+    let data;
+    let total = 0;
+
+    if (isAdmin(req)) {
+      const result = await companyService.getAllCompanies({ skip, limit });
+      data = result.companies;
+      total = result.total;
+    } else {
+      data = [await companyService.getCompanyById(getCompanyId(req))].filter(Boolean);
+      total = data.length;
+    }
 
     return res.status(200).json({
       success: true,
       message: "Companies retrieved successfully",
-      data: companies,
+      data,
       pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {

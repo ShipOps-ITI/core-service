@@ -5,18 +5,29 @@ const {
   canAccessCompany,
   denyCompanyAccess,
 } = require("../../middleware/companyScope");
+const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/fleets
 exports.getAllFleets = async (req, res) => {
   try {
-    const fleets = isAdmin(req)
-      ? await fleetService.getAllFleets()
-      : await fleetService.getFleetsByCompany(getCompanyId(req));
+    const { page, limit, skip } = getPagination(req.query);
+
+    let data;
+    let total = 0;
+
+    if (isAdmin(req)) {
+      const result = await fleetService.getAllFleets({ skip, limit });
+      data = result.fleets;
+      total = result.total;
+    } else {
+      data = await fleetService.getFleetsByCompany(getCompanyId(req));
+      total = data.length;
+    }
 
     return res.status(200).json({
       success: true,
       message: "Fleets retrieved successfully",
-      data: fleets,
+      data,
       pagination: getPaginationMeta(page, limit, total),
     });
   } catch (error) {
