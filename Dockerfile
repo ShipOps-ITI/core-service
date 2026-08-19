@@ -1,12 +1,12 @@
 # Multi-stage Dockerfile for core-service
-FROM node:18-alpine AS deps
+FROM node:18-bullseye-slim AS deps
 WORKDIR /app
 
 # Install dependencies
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:18-alpine AS builder
+FROM node:18-bullseye-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -16,7 +16,7 @@ ARG DATABASE_URL
 ENV DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:password@shipment-postgres:5432/shipment_db"}
 RUN npx prisma generate
 
-FROM node:18-alpine AS runner
+FROM node:18-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
