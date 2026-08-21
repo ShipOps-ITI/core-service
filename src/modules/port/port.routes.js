@@ -6,8 +6,8 @@ const { createPortSchema, updatePortSchema } = require("./port.validation");
 
 const router = express.Router();
 
-router.get("/", authorize("ADMIN", "FLEET_MANAGER"), controller.getAllPorts);
-router.get("/:id", authorize("ADMIN", "FLEET_MANAGER"), controller.getPortById);
+router.get("/", authorize("ADMIN", "COMPANY_ADMIN", "FLEET_MANAGER"), controller.getAllPorts);
+router.get("/:id", authorize("ADMIN", "COMPANY_ADMIN", "FLEET_MANAGER"), controller.getPortById);
 router.post("/", authorize("ADMIN"), validate(createPortSchema), controller.createPort);
 router.put("/:id", authorize("ADMIN"), validate(updatePortSchema), controller.updatePort);
 router.delete("/:id", authorize("ADMIN"), controller.deletePort);

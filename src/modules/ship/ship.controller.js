@@ -40,6 +40,18 @@ exports.getAllShips = async (req, res) => {
   }
 };
 
+// GET /api/v1/ships/statistics
+exports.getShipStatistics = async (req, res) => {
+  try {
+    const companyId = isAdmin(req) ? null : getCompanyId(req);
+    const statistics = await shipService.getShipStatistics(companyId);
+    return res.status(200).json({ success: true, data: statistics });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Failed to retrieve ship statistics" });
+  }
+};
+
 // GET /api/v1/ships/:id
 exports.getShipById = async (req, res) => {
   try {
