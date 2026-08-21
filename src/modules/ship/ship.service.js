@@ -32,6 +32,30 @@ exports.getAllShips = async ({ skip, limit }) => {
   return { ships, total };
 };
 
+exports.getShipStatistics = async (companyId = null) => {
+  const where = companyId ? { companyId: Number(companyId) } : {};
+  const [totalShips, shipsByStatus, latestShips] = await prisma.$transaction([
+    prisma.ship.count({ where }),
+    prisma.ship.groupBy({ by: ["availabilityState"], _count: { availabilityState: true }, where }),
+    prisma.ship.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, availabilityState: true, lastAisUpdateAt: true },
+    }),
+  ]);
+
+  const countFor = (state) => shipsByStatus.find((item) => item.availabilityState === state)?._count.availabilityState ?? 0;
+  return {
+    totalShips,
+    shipsAtSea: countFor("AT_SEA"),
+    shipsDocked: countFor("DOCKED"),
+    shipsInMaintenance: countFor("MAINTENANCE"),
+    shipsByStatus: shipsByStatus.map((item) => ({ status: item.availabilityState, count: item._count.availabilityState })),
+    latestShips,
+  };
+};
+
 // Get ship by ID
 exports.getShipById = async (id) => {
   return prisma.ship.findUnique({

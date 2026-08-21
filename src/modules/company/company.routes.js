@@ -17,14 +17,14 @@ router.get("/:id", requireCompanyMembership, companyController.getCompanyById);
 
 router.post(
   "/",
-  authorize("ADMIN"),
+  authorize("ADMIN", "COMPANY_ADMIN"),
   validate(createCompanySchema),
   companyController.createCompany
 );
 
 router.put(
   "/:id",
-  authorize("ADMIN"),
+  authorize("ADMIN", "COMPANY_ADMIN"),
   validate(updateCompanySchema),
   companyController.updateCompany
 );

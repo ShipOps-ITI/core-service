@@ -82,6 +82,13 @@ exports.getCompanyById = async (req, res) => {
 // POST /api/v1/companies
 exports.createCompany = async (req, res) => {
   try {
+    if (req.user.role === "COMPANY_ADMIN" && req.user.companyId) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is already assigned to a company",
+      });
+    }
+
     const company = await companyService.createCompany(req.body);
 
     return res.status(201).json({
