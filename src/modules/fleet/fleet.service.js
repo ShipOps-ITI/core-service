@@ -38,6 +38,11 @@ exports.getFleetById = async (id) => {
                     name: true,
                 },
             },
+            _count: {
+                select: {
+                    ships: true,
+                },
+            },
             ships: {
                 select: {
                     id: true,

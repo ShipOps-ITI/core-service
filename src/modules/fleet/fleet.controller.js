@@ -160,6 +160,14 @@ exports.deleteFleet = async (req, res) => {
       return denyCompanyAccess(res);
     }
 
+    const shipCount = existingFleet.ships?.length || 0;
+    if (shipCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `This fleet has ${shipCount} ship record(s). Delete the ship records first before deleting this fleet.`,
+      });
+    }
+
     await fleetService.deleteFleet(id);
 
     return res.status(200).json({
