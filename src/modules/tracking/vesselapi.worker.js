@@ -8,6 +8,7 @@ const { processAisPosition } = require("./ais-position.processor");
 
 const VESSELAPI_URL = "https://api.vesselapi.com/v1/vessels/positions";
 const DEFAULT_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_QUOTA_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const MAX_VESSELS_PER_REQUEST = 50;
 
 const getPollInterval = () => {
@@ -18,6 +19,13 @@ const getPollInterval = () => {
   }
 
   return configuredInterval;
+};
+
+const getQuotaCooldown = () => {
+  const configuredCooldown = Number(process.env.VESSELAPI_QUOTA_COOLDOWN_MS);
+  return Number.isFinite(configuredCooldown) && configuredCooldown >= 60 * 60 * 1000
+    ? configuredCooldown
+    : DEFAULT_QUOTA_COOLDOWN_MS;
 };
 
 const getTrackedMmsis = async () => {
@@ -48,7 +56,10 @@ const fetchPositions = async (mmsiNumbers) => {
 
   if (!response.ok) {
     const message = payload?.error?.message || payload?.message || response.statusText;
-    throw new Error(`VesselAPI request failed (${response.status}): ${message}`);
+    const error = new Error(`VesselAPI request failed (${response.status}): ${message}`);
+    error.status = response.status;
+    error.quotaExceeded = response.status === 429 && /monthly quota|quota exceeded/i.test(message);
+    throw error;
   }
 
   return Array.isArray(payload?.vesselPositions) ? payload.vesselPositions : [];
@@ -93,27 +104,40 @@ const startVesselApiWorker = async () => {
   }
 
   const pollInterval = getPollInterval();
+  const quotaCooldown = getQuotaCooldown();
   let polling = false;
+  let timer;
+
+  const scheduleNextPoll = (delay) => {
+    clearTimeout(timer);
+    timer = setTimeout(runPoll, delay);
+  };
 
   const runPoll = async () => {
-    if (polling) return;
+    if (polling) return scheduleNextPoll(pollInterval);
 
     polling = true;
+    let nextDelay = pollInterval;
     try {
       await pollVesselApi();
     } catch (error) {
       console.error(`VesselAPI tracking error: ${error.message}`);
+      if (error.quotaExceeded) {
+        nextDelay = quotaCooldown;
+        console.warn(`VesselAPI monthly quota is exhausted. Keeping last-known positions and retrying in ${Math.round(quotaCooldown / 3_600_000)} hour(s).`);
+      } else if (error.status === 429) {
+        nextDelay = Math.max(pollInterval, 60 * 60 * 1000);
+        console.warn("VesselAPI rate limit reached. Retrying in one hour.");
+      }
     } finally {
       polling = false;
+      scheduleNextPoll(nextDelay);
     }
   };
 
   console.log(`VesselAPI worker started. Polling every ${Math.round(pollInterval / 1000)} seconds.`);
   await runPoll();
-
-  const interval = setInterval(runPoll, pollInterval);
-
-  return () => clearInterval(interval);
+  return () => clearTimeout(timer);
 };
 
 if (require.main === module) {
@@ -140,6 +164,7 @@ if (require.main === module) {
 module.exports = {
   fetchPositions,
   getPollInterval,
+  getQuotaCooldown,
   getTrackedMmsis,
   pollVesselApi,
   startVesselApiWorker,
