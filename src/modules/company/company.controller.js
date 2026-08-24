@@ -99,6 +99,13 @@ exports.createCompany = async (req, res) => {
   } catch (error) {
     console.error(error);
 
+    if (error.code === "P2002" && error.meta?.target?.includes("name")) {
+      return res.status(409).json({
+        success: false,
+        message: "A company with this name already exists. Please choose a different company name.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Failed to create company",

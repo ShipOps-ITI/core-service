@@ -1,11 +1,27 @@
 const shipService = require("./ship.service");
 const {
   isAdmin,
+  isFleetManager,
   getCompanyId,
   canAccessCompany,
+  canAccessFleet,
   denyCompanyAccess,
 } = require("../../middleware/companyScope");
 const { getPagination, getPaginationMeta } = require("../../utils/pagination");
+
+function sendShipUniqueConflict(res, error) {
+  if (error.code !== "P2002") return false;
+
+  const targets = Array.isArray(error.meta?.target) ? error.meta.target : [error.meta?.target];
+  const message = targets.includes("imoNumber")
+    ? "This IMO number is already assigned to another ship."
+    : targets.includes("mmsiNumber")
+      ? "This MMSI number is already assigned to another ship."
+      : "A ship with these unique details already exists.";
+
+  res.status(409).json({ success: false, message });
+  return true;
+}
 
 // GET /api/v1/ships
 exports.getAllShips = async (req, res) => {
@@ -20,7 +36,10 @@ exports.getAllShips = async (req, res) => {
       data = result.ships;
       total = result.total;
     } else {
-      data = await shipService.getShipsByCompany(getCompanyId(req));
+      data = await shipService.getShipsByCompany(
+        getCompanyId(req),
+        isFleetManager(req) ? req.user.userId : null,
+      );
       total = data.length;
     }
 
@@ -44,7 +63,7 @@ exports.getAllShips = async (req, res) => {
 exports.getShipStatistics = async (req, res) => {
   try {
     const companyId = isAdmin(req) ? null : getCompanyId(req);
-    const statistics = await shipService.getShipStatistics(companyId);
+    const statistics = await shipService.getShipStatistics(companyId, isFleetManager(req) ? req.user.userId : null);
     return res.status(200).json({ success: true, data: statistics });
   } catch (error) {
     console.error(error);
@@ -64,7 +83,7 @@ exports.getShipById = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, ship.companyId)) {
+    if (!canAccessCompany(req, ship.companyId) || (isFleetManager(req) && Number(ship.fleet?.managedByUserId) !== Number(req.user.userId))) {
       return denyCompanyAccess(res);
     }
 
@@ -104,6 +123,10 @@ exports.createShip = async (req, res) => {
       });
     }
 
+    if (isFleetManager(req) && Number(fleet.managedByUserId) !== Number(req.user.userId)) {
+      return denyCompanyAccess(res);
+    }
+
     const ship = await shipService.createShip({
       ...req.body,
       companyId,
@@ -116,6 +139,8 @@ exports.createShip = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (sendShipUniqueConflict(res, error)) return;
 
     return res.status(500).json({
       success: false,
@@ -137,7 +162,7 @@ exports.updateShip = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, existingShip.companyId)) {
+    if (!canAccessCompany(req, existingShip.companyId) || (isFleetManager(req) && Number(existingShip.fleet?.managedByUserId) !== Number(req.user.userId))) {
       return denyCompanyAccess(res);
     }
 
@@ -149,6 +174,7 @@ exports.updateShip = async (req, res) => {
           message: "The selected fleet does not belong to this ship's company",
         });
       }
+      if (isFleetManager(req) && Number(fleet.managedByUserId) !== Number(req.user.userId)) return denyCompanyAccess(res);
     }
 
     // Company ownership cannot be changed through a ship update.
@@ -163,6 +189,8 @@ exports.updateShip = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (sendShipUniqueConflict(res, error)) return;
 
     return res.status(500).json({
       success: false,
@@ -184,7 +212,7 @@ exports.deleteShip = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, existingShip.companyId)) {
+    if (!canAccessCompany(req, existingShip.companyId) || (isFleetManager(req) && Number(existingShip.fleet?.managedByUserId) !== Number(req.user.userId))) {
       return denyCompanyAccess(res);
     }
 
@@ -211,7 +239,10 @@ exports.getShipsByCompany = async (req, res) => {
       return denyCompanyAccess(res);
     }
 
-    const ships = await shipService.getShipsByCompany(req.params.companyId);
+    const ships = await shipService.getShipsByCompany(
+      req.params.companyId,
+      isFleetManager(req) ? req.user.userId : null,
+    );
 
     return res.status(200).json({
       success: true,
@@ -236,7 +267,7 @@ exports.getShipsByFleet = async (req, res) => {
       return res.status(404).json({ success: false, message: "Fleet not found" });
     }
 
-    if (!canAccessCompany(req, fleet.companyId)) {
+    if (!canAccessFleet(req, fleet)) {
       return denyCompanyAccess(res);
     }
 

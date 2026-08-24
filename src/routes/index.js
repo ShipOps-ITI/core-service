@@ -4,6 +4,7 @@ const companyRoutes = require("../modules/company/company.routes");
 const fleetRoutes = require("../modules/fleet/fleet.routes");
 const shipRoutes = require("../modules/ship/ship.routes");
 const portRoutes = require("../modules/port/port.routes");
+const trackingRoutes = require("../modules/tracking/tracking.routes");
 const authenticate = require("../middleware/authenticate");
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.use("/companies", companyRoutes);
 router.use("/fleets", fleetRoutes);
 router.use("/ships", shipRoutes);
 router.use("/ports", portRoutes);
+router.use("/tracking", trackingRoutes);
 
 module.exports = router;

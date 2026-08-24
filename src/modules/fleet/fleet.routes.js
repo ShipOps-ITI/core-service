@@ -23,7 +23,7 @@ router.get("/:id", authorize("ADMIN", "COMPANY_ADMIN", "FLEET_MANAGER"), require
 // Create fleet
 router.post(
   "/",
-  authorize("ADMIN", "COMPANY_ADMIN", "FLEET_MANAGER"),
+  authorize("ADMIN", "COMPANY_ADMIN"),
   requireCompanyMembership,
   validate(createFleetSchema),
   controller.createFleet
@@ -39,6 +39,6 @@ router.put(
 );
 
 // Delete fleet
-router.delete("/:id", authorize("ADMIN", "COMPANY_ADMIN", "FLEET_MANAGER"), requireCompanyMembership, controller.deleteFleet);
+router.delete("/:id", authorize("ADMIN", "COMPANY_ADMIN"), requireCompanyMembership, controller.deleteFleet);
 
 module.exports = router;

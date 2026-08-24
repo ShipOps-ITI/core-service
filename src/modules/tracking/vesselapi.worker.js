@@ -5,11 +5,12 @@ require("dotenv").config();
 
 const prisma = require("../../database/prisma");
 const { processAisPosition } = require("./ais-position.processor");
+const { recordPollStarted, recordPollSuccess, recordPollFailure } = require("./tracking-health.service");
 
 const VESSELAPI_URL = "https://api.vesselapi.com/v1/vessels/positions";
 const DEFAULT_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_QUOTA_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-const MAX_VESSELS_PER_REQUEST = 50;
+const DEFAULT_MAX_VESSELS_PER_REQUEST = 10;
 
 const getPollInterval = () => {
   const configuredInterval = Number(process.env.VESSELAPI_POLL_INTERVAL_MS);
@@ -28,11 +29,22 @@ const getQuotaCooldown = () => {
     : DEFAULT_QUOTA_COOLDOWN_MS;
 };
 
+const getMaxVesselsPerRequest = () => {
+  const configuredLimit = Number(process.env.VESSELAPI_MAX_VESSELS_PER_REQUEST);
+
+  if (!Number.isInteger(configuredLimit) || configuredLimit < 1) {
+    return DEFAULT_MAX_VESSELS_PER_REQUEST;
+  }
+
+  return Math.min(configuredLimit, 50);
+};
+
 const getTrackedMmsis = async () => {
+  const maxVesselsPerRequest = getMaxVesselsPerRequest();
   const ships = await prisma.ship.findMany({
     where: { mmsiNumber: { not: null } },
     select: { mmsiNumber: true },
-    take: MAX_VESSELS_PER_REQUEST,
+    take: maxVesselsPerRequest,
   });
 
   return ships.map((ship) => ship.mmsiNumber);
@@ -42,7 +54,9 @@ const fetchPositions = async (mmsiNumbers) => {
   const url = new URL(VESSELAPI_URL);
   url.searchParams.set("filter.ids", mmsiNumbers.join(","));
   url.searchParams.set("filter.idType", "mmsi");
-  url.searchParams.set("pagination.limit", String(MAX_VESSELS_PER_REQUEST));
+  // A position request only needs one result per tracked vessel. Avoid asking
+  // the provider for the historical default of up to 50 records each poll.
+  url.searchParams.set("pagination.limit", String(Math.min(mmsiNumbers.length, getMaxVesselsPerRequest())));
 
   const response = await fetch(url, {
     headers: {
@@ -87,14 +101,21 @@ const updatePositions = async (positions) => {
 
 const pollVesselApi = async () => {
   const mmsiNumbers = await getTrackedMmsis();
+  await recordPollStarted(mmsiNumbers.length);
 
   if (mmsiNumbers.length === 0) {
     console.warn("No ships with an MMSI number were found. Add an MMSI before tracking.");
+    await recordPollSuccess({ trackedShipCount: 0, returnedPositionCount: 0, updatedShipCount: 0 });
     return;
   }
 
   const positions = await fetchPositions(mmsiNumbers);
   const updatedCount = await updatePositions(positions);
+  await recordPollSuccess({
+    trackedShipCount: mmsiNumbers.length,
+    returnedPositionCount: positions.length,
+    updatedShipCount: updatedCount,
+  });
   console.log(`VesselAPI returned ${positions.length} position(s); updated ${updatedCount} ShipOps ship(s).`);
 };
 
@@ -129,6 +150,11 @@ const startVesselApiWorker = async () => {
         nextDelay = Math.max(pollInterval, 60 * 60 * 1000);
         console.warn("VesselAPI rate limit reached. Retrying in one hour.");
       }
+      await recordPollFailure({
+        error,
+        quotaExceeded: Boolean(error.quotaExceeded),
+        retryingAt: new Date(Date.now() + nextDelay),
+      }).catch((healthError) => console.error(`Could not store tracking health: ${healthError.message}`));
     } finally {
       polling = false;
       scheduleNextPoll(nextDelay);

@@ -11,6 +11,7 @@ const shipInclude = {
     select: {
       id: true,
       name: true,
+      managedByUserId: true,
     },
   },
 };
@@ -32,8 +33,11 @@ exports.getAllShips = async ({ skip, limit }) => {
   return { ships, total };
 };
 
-exports.getShipStatistics = async (companyId = null) => {
-  const where = companyId ? { companyId: Number(companyId) } : {};
+exports.getShipStatistics = async (companyId = null, managedByUserId = null) => {
+  const where = companyId ? {
+    companyId: Number(companyId),
+    ...(managedByUserId ? { fleet: { managedByUserId: Number(managedByUserId) } } : {}),
+  } : {};
   const [totalShips, shipsByStatus, latestShips] = await prisma.$transaction([
     prisma.ship.count({ where }),
     prisma.ship.groupBy({ by: ["availabilityState"], _count: { availabilityState: true }, where }),
@@ -65,9 +69,12 @@ exports.getShipById = async (id) => {
 };
 
 // Get all ships for a company
-exports.getShipsByCompany = async (companyId) => {
+exports.getShipsByCompany = async (companyId, managedByUserId = null) => {
   return prisma.ship.findMany({
-    where: { companyId: Number(companyId) },
+    where: {
+      companyId: Number(companyId),
+      ...(managedByUserId ? { fleet: { managedByUserId: Number(managedByUserId) } } : {}),
+    },
     include: shipInclude,
     orderBy: {
       createdAt: "desc",
@@ -89,7 +96,7 @@ exports.getShipsByFleet = async (fleetId) => {
 exports.getFleetById = async (id) => {
   return prisma.fleet.findUnique({
     where: { id: Number(id) },
-    select: { id: true, companyId: true },
+    select: { id: true, companyId: true, managedByUserId: true },
   });
 };
 

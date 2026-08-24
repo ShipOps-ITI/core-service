@@ -82,8 +82,8 @@ model Ship {
 
   name                String
 
-  imoNumber           String?     @unique
-  mmsiNumber          String?     @unique
+  imoNumber           String?
+  mmsiNumber          String?
 
   flag                String
 
@@ -109,6 +109,8 @@ model Ship {
   @@index([companyId])
   @@index([fleetId])
   @@index([availabilityState])
+  @@unique([companyId, imoNumber])
+  @@unique([companyId, mmsiNumber])
 
   @@map("ships")
 }
@@ -135,4 +137,27 @@ model Port {
   @@index([country])
   @@index([unLocode])
   @@map("ports")
+}
+
+// Singleton record written by the dedicated tracking worker and read by the
+// operations dashboard. It deliberately contains no vessel data.
+model TrackingWorkerHealth {
+  id                       Int       @id @default(1)
+  lastPollStartedAt        DateTime?
+  lastSuccessfulApiCallAt  DateTime?
+  lastPositionUpdateAt     DateTime?
+  lastFailureAt            DateTime?
+  lastError                String?
+  quotaCooldownUntil       DateTime?
+  totalPolls               Int       @default(0)
+  successfulPolls          Int       @default(0)
+  failedPolls              Int       @default(0)
+  retryCount               Int       @default(0)
+  quotaFailureCount        Int       @default(0)
+  trackedShipCount         Int       @default(0)
+  returnedPositionCount    Int       @default(0)
+  updatedShipCount         Int       @default(0)
+  updatedAt                DateTime  @updatedAt
+
+  @@map("tracking_worker_health")
 }

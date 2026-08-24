@@ -98,3 +98,14 @@ exports.getFleetsByCompany = async (companyId) => {
         },
     });
 };
+
+exports.getFleetsManagedByUser = async (companyId, userId) => {
+    return prisma.fleet.findMany({
+        where: { companyId: Number(companyId), managedByUserId: Number(userId) },
+        include: {
+            company: { select: { id: true, name: true } },
+            ships: { select: { id: true, name: true, availabilityState: true } },
+        },
+        orderBy: { createdAt: "desc" },
+    });
+};

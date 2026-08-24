@@ -1,6 +1,11 @@
 const getCompanyId = (req) => Number(req.user?.companyId);
 
 const isAdmin = (req) => req.user?.role === "ADMIN";
+const isFleetManager = (req) => req.user?.role === "FLEET_MANAGER";
+
+const canAccessFleet = (req, fleet) =>
+  canAccessCompany(req, fleet.companyId)
+  && (!isFleetManager(req) || Number(fleet.managedByUserId) === Number(req.user?.userId));
 
 const requireCompanyMembership = (req, res, next) => {
   if (isAdmin(req)) return next();
@@ -26,8 +31,10 @@ const denyCompanyAccess = (res) =>
 
 module.exports = {
   isAdmin,
+  isFleetManager,
   getCompanyId,
   requireCompanyMembership,
   canAccessCompany,
+  canAccessFleet,
   denyCompanyAccess,
 };

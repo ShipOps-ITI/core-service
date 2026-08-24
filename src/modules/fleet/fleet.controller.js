@@ -1,10 +1,13 @@
 const fleetService = require("./fleet.service");
 const {
   isAdmin,
+  isFleetManager,
   getCompanyId,
   canAccessCompany,
+  canAccessFleet,
   denyCompanyAccess,
 } = require("../../middleware/companyScope");
+const { verifyFleetManager } = require("../../services/authReference.service");
 const { getPagination, getPaginationMeta } = require("../../utils/pagination");
 
 // GET /api/v1/fleets
@@ -19,6 +22,9 @@ exports.getAllFleets = async (req, res) => {
       const result = await fleetService.getAllFleets({ skip, limit });
       data = result.fleets;
       total = result.total;
+    } else if (isFleetManager(req)) {
+      data = await fleetService.getFleetsManagedByUser(getCompanyId(req), req.user.userId);
+      total = data.length;
     } else {
       data = await fleetService.getFleetsByCompany(getCompanyId(req));
       total = data.length;
@@ -54,7 +60,7 @@ exports.getFleetById = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, fleet.companyId)) {
+    if (!canAccessFleet(req, fleet)) {
       return denyCompanyAccess(res);
     }
 
@@ -85,10 +91,16 @@ exports.createFleet = async (req, res) => {
       });
     }
 
+    const requestedManagerId = Number(req.body.managedByUserId);
+    if (req.body.managedByUserId !== undefined && requestedManagerId !== Number(req.user.userId)) {
+      const manager = await verifyFleetManager(requestedManagerId, companyId, req.headers.authorization);
+      if (!manager.valid) return res.status(400).json({ success: false, message: manager.message });
+    }
+
     const fleet = await fleetService.createFleet({
       ...req.body,
       companyId,
-      managedByUserId: req.user.userId,
+      managedByUserId: requestedManagerId || req.user.userId,
       createdByUserId: req.user.userId,
     });
 
@@ -121,8 +133,16 @@ exports.updateFleet = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, existingFleet.companyId)) {
+    if (!canAccessFleet(req, existingFleet)) {
       return denyCompanyAccess(res);
+    }
+
+    if (req.body.managedByUserId !== undefined) {
+      if (isFleetManager(req)) {
+        return res.status(403).json({ success: false, message: "Fleet Managers cannot change fleet assignments." });
+      }
+      const manager = await verifyFleetManager(Number(req.body.managedByUserId), existingFleet.companyId, req.headers.authorization);
+      if (!manager.valid) return res.status(400).json({ success: false, message: manager.message });
     }
 
     const updatedFleet = await fleetService.updateFleet(id, req.body);
@@ -156,7 +176,7 @@ exports.deleteFleet = async (req, res) => {
       });
     }
 
-    if (!canAccessCompany(req, existingFleet.companyId)) {
+    if (!canAccessFleet(req, existingFleet)) {
       return denyCompanyAccess(res);
     }
 
@@ -193,7 +213,9 @@ exports.getFleetsByCompany = async (req, res) => {
       return denyCompanyAccess(res);
     }
 
-    const fleets = await fleetService.getFleetsByCompany(companyId);
+    const fleets = isFleetManager(req)
+      ? await fleetService.getFleetsManagedByUser(companyId, req.user.userId)
+      : await fleetService.getFleetsByCompany(companyId);
 
     return res.status(200).json({
       success: true,
