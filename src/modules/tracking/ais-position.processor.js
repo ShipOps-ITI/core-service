@@ -17,32 +17,34 @@ const processAisPosition = async ({ mmsi, latitude, longitude, reportedAt }) => 
     return { matched: false, reason: "Invalid AIS position" };
   }
 
-  const ship = await prisma.ship.findUnique({
+  const ships = await prisma.ship.findMany({
     where: { mmsiNumber },
     select: { id: true, name: true },
   });
 
-  if (!ship) {
+  if (ships.length === 0) {
     return { matched: false, reason: "No ShipOps ship has this MMSI" };
   }
 
-  const updatedShip = await prisma.ship.update({
-    where: { id: ship.id },
+  const updateResult = await prisma.ship.updateMany({
+    where: { mmsiNumber },
     data: {
       currentLatitude: parsedLatitude,
       currentLongitude: parsedLongitude,
       lastAisUpdateAt,
     },
-    select: {
-      id: true,
-      name: true,
-      currentLatitude: true,
-      currentLongitude: true,
-      lastAisUpdateAt: true,
-    },
   });
 
-  return { matched: true, ship: updatedShip };
+  return {
+    matched: true,
+    matchedCount: updateResult.count,
+    ship: {
+      ...ships[0],
+      currentLatitude: parsedLatitude,
+      currentLongitude: parsedLongitude,
+      lastAisUpdateAt,
+    },
+  };
 };
 
 module.exports = { processAisPosition };

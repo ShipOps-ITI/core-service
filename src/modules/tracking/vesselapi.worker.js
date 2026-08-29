@@ -11,6 +11,7 @@ const VESSELAPI_URL = "https://api.vesselapi.com/v1/vessels/positions";
 const DEFAULT_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_QUOTA_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_VESSELS_PER_REQUEST = 10;
+let nextMmsiOffset = 0;
 
 const getPollInterval = () => {
   const configuredInterval = Number(process.env.VESSELAPI_POLL_INTERVAL_MS);
@@ -39,15 +40,64 @@ const getMaxVesselsPerRequest = () => {
   return Math.min(configuredLimit, 50);
 };
 
+const selectMmsiBatch = (mmsiNumbers, batchSize, offset = 0) => {
+  if (mmsiNumbers.length === 0) return { batch: [], nextOffset: 0 };
+
+  const normalizedOffset = offset % mmsiNumbers.length;
+  const size = Math.min(batchSize, mmsiNumbers.length);
+  const batch = Array.from(
+    { length: size },
+    (_, index) => mmsiNumbers[(normalizedOffset + index) % mmsiNumbers.length],
+  );
+
+  return {
+    batch,
+    nextOffset: (normalizedOffset + size) % mmsiNumbers.length,
+  };
+};
+
 const getTrackedMmsis = async () => {
-  const maxVesselsPerRequest = getMaxVesselsPerRequest();
   const ships = await prisma.ship.findMany({
     where: { mmsiNumber: { not: null } },
     select: { mmsiNumber: true },
-    take: maxVesselsPerRequest,
+    orderBy: { id: "asc" },
   });
 
-  return ships.map((ship) => ship.mmsiNumber);
+  const allMmsis = [...new Set(ships.map((ship) => ship.mmsiNumber).filter(Boolean))];
+  const selection = selectMmsiBatch(
+    allMmsis,
+    getMaxVesselsPerRequest(),
+    nextMmsiOffset,
+  );
+  nextMmsiOffset = selection.nextOffset;
+  return selection.batch;
+};
+
+const getLatestPositionsByMmsi = (positions) => {
+  const latestByMmsi = new Map();
+
+  for (const position of positions) {
+    const mmsi = String(position?.mmsi || "");
+    if (!mmsi) continue;
+
+    const current = latestByMmsi.get(mmsi);
+    const parsedPositionTime = new Date(position.timestamp || 0).getTime();
+    const parsedCurrentTime = current
+      ? new Date(current.timestamp || 0).getTime()
+      : Number.NEGATIVE_INFINITY;
+    const positionTime = Number.isFinite(parsedPositionTime)
+      ? parsedPositionTime
+      : Number.NEGATIVE_INFINITY;
+    const currentTime = Number.isFinite(parsedCurrentTime)
+      ? parsedCurrentTime
+      : Number.NEGATIVE_INFINITY;
+
+    if (!current || positionTime >= currentTime) {
+      latestByMmsi.set(mmsi, position);
+    }
+  }
+
+  return [...latestByMmsi.values()];
 };
 
 const fetchPositions = async (mmsiNumbers) => {
@@ -76,7 +126,9 @@ const fetchPositions = async (mmsiNumbers) => {
     throw error;
   }
 
-  return Array.isArray(payload?.vesselPositions) ? payload.vesselPositions : [];
+  return getLatestPositionsByMmsi(
+    Array.isArray(payload?.vesselPositions) ? payload.vesselPositions : [],
+  );
 };
 
 const updatePositions = async (positions) => {
@@ -91,8 +143,11 @@ const updatePositions = async (positions) => {
     });
 
     if (result.matched) {
-      updatedCount += 1;
-      console.log(`Updated ${result.ship.name}: ${result.ship.currentLatitude}, ${result.ship.currentLongitude}`);
+      updatedCount += result.matchedCount;
+      console.log(
+        `Updated ${result.matchedCount} ShipOps ship record(s) for MMSI ${position.mmsi}: ` +
+        `${result.ship.currentLatitude}, ${result.ship.currentLongitude}`,
+      );
     }
   }
 
@@ -189,9 +244,11 @@ if (require.main === module) {
 
 module.exports = {
   fetchPositions,
+  getLatestPositionsByMmsi,
   getPollInterval,
   getQuotaCooldown,
   getTrackedMmsis,
   pollVesselApi,
+  selectMmsiBatch,
   startVesselApiWorker,
 };
